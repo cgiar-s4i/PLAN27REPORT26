@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CGIAR 2026–2027 Reporting & Planning — Interactive Gantt</title>
+<style>
+  :root{
+    --prep:#E9B949; --data:#4A7BA6; --qa:#7FC7A3; --dev:#1E6B4F; --pub:#123B2E;
+    --plan:#2E7D32; --pod1:#2C6EA5; --pod2:#2E7D32; --pod3:#E07A2C;
+    --ink:#1f2a26; --muted:#6b7a74; --line:#e3e8e5; --bg:#ffffff; --panel:#f6f8f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+  header{padding:22px 28px 10px;}
+  h1{margin:0 0 6px;font-size:40px;color:var(--pub);}
+  .sub{color:var(--muted);font-size:24px;margin:0;}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:16px 28px;}
+  .controls .lbl{font-size:20px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px;}
+  .filter{border:1px solid var(--line);background:#fff;border-radius:24px;padding:9px 18px;font-size:22px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:9px;}
+  .filter:hover{background:var(--panel);}
+  .filter.off{opacity:.35;}
+  .dot{width:18px;height:18px;border-radius:4px;display:inline-block;}
+  .wrap{overflow-x:auto;padding:0 28px 40px;}
+  .gantt{min-width:1280px;position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .months{display:flex;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;}
+  .label-col{flex:0 0 300px;padding:12px 14px;font-size:22px;color:var(--muted);font-weight:600;border-right:1px solid var(--line);background:var(--panel);}
+  .month{flex:1 1 0;text-align:center;font-size:20px;font-weight:600;color:var(--muted);padding:12px 2px;border-left:1px solid var(--line);}
+  .month small{display:block;font-weight:400;font-size:15px;opacity:.7;}
+  .grouphdr{display:flex;align-items:center;gap:8px;background:#eef3f0;color:var(--pub);font-weight:700;font-size:21px;padding:11px 14px;border-top:1px solid var(--line);letter-spacing:.03em;text-transform:uppercase;}
+  .row{display:flex;border-top:1px solid var(--line);min-height:64px;position:relative;}
+  .row:hover{background:#fafcfb;}
+  .row .name{flex:0 0 300px;padding:10px 14px;font-size:21px;border-right:1px solid var(--line);display:flex;align-items:flex-start;gap:8px;line-height:1.25;cursor:pointer;user-select:none;}
+  .row .name:hover{color:var(--dev);}
+  .caret{color:var(--muted);font-size:15px;line-height:1.6;transition:transform .15s;flex:0 0 auto;}
+  .name.open .caret{transform:rotate(90deg);}
+  .desc{display:none;padding:12px 20px 14px 42px;font-size:18px;line-height:1.4;color:#3a4742;background:#f2f6f4;border-top:1px solid var(--line);}
+  .desc.show{display:block;}
+  .togglebtn{border:1px solid var(--dev);background:var(--dev);color:#fff;border-radius:24px;padding:9px 18px;font-size:22px;cursor:pointer;margin-left:auto;}
+  .togglebtn:hover{opacity:.9;}
+  .track{position:relative;flex:1 1 0;}
+  .bar{position:absolute;top:14px;height:36px;border-radius:7px;color:#fff;font-size:19px;font-weight:600;display:flex;align-items:center;padding:0 10px;white-space:nowrap;overflow:hidden;cursor:default;box-shadow:0 1px 2px rgba(0,0,0,.12);}
+  .bar.hard{box-shadow:0 0 0 3px #c0392b inset,0 1px 2px rgba(0,0,0,.15);}
+  .milestone{position:absolute;top:18px;width:30px;height:30px;transform:rotate(45deg);border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,.2);cursor:default;}
+  .grid-lines{position:absolute;inset:0;pointer-events:none;z-index:0;}
+  .gl{position:absolute;top:0;bottom:0;border-left:1px solid var(--line);}
+  .today{position:absolute;top:0;bottom:0;border-left:2px dashed #c0392b;z-index:4;pointer-events:none;}
+  .today .flag{position:absolute;top:-1px;left:3px;background:#c0392b;color:#fff;font-size:16px;padding:2px 8px;border-radius:4px;white-space:nowrap;}
+  .tip{position:fixed;z-index:50;background:#12241d;color:#fff;padding:11px 15px;border-radius:8px;font-size:20px;max-width:380px;pointer-events:none;opacity:0;transition:opacity .12s;box-shadow:0 6px 20px rgba(0,0,0,.3);line-height:1.35;}
+  .tip b{color:#8fe3b9;}
+  .legend{padding:2px 28px 26px;font-size:20px;color:var(--muted);}
+  .legend span{margin-right:20px;display:inline-flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .hint{padding:0 28px;font-size:21px;color:var(--muted);}
+  .diamond-key{width:20px;height:20px;transform:rotate(45deg);display:inline-block;border-radius:3px;background:#999;}
+</style>
+</head>
+<body>
+<header>
+  <h1>CGIAR 2026–2027 Reporting & Planning</h1>
+  <p class="sub">Interactive Gantt — 2026 KPI/POD review & call for PoD 2027, and the 2026 reporting cycle. Hover any bar for details; click a task to expand its description.</p>
+</header>
+
+<div class="controls" id="filters">
+  <span class="lbl">Workstreams</span>
+</div>
+<p class="hint">Diamonds ◆ = milestones / deadlines. Red outline = hard deadline. Dashed red line = today.</p>
+
+<div class="wrap">
+  <div class="gantt" id="gantt"></div>
+</div>
+
+<div class="legend" id="legend"></div>
+<div class="tip" id="tip"></div>
+
+<script>
+const DAY = 86400000;
+const START = new Date('2026-06-01');
+const END   = new Date('2027-02-28');
+const TODAY = new Date('2026-07-17');
+
+const cat = {
+  plan:{c:'#2E7D32',t:'KPI/POD & 2027 Planning'},
+  prep:{c:'#E9B949',t:'Adapt & prepare'},
+  data:{c:'#4A7BA6',t:'Data entry / reporting'},
+  qa:{c:'#7FC7A3',t:'Quality assurance'}
+};
+
+const groups = [
+  { name:'2026 KPI/POD Review & Call for PoD for 2027', key:'planning', tasks:[
+    {n:'Q2 Reporting from KPI/PoD lead', s:'2026-07-31', m:true, c:'plan', d:'Q2 Reporting from KPI/PoD lead, due by 31 July 2026.'},
+    {n:'% of KPI/PoD continue information from AoW Lead', s:'2026-07-31', m:true, c:'plan', d:'% of KPI/PoD continue information provided from the AoW Lead, due by 31 July 2026.'},
+    {n:'One Pager guidance for requested PoD for 2027', s:'2026-07-31', m:true, c:'plan', d:'One-pager guidance for requested PoD for 2027, due by 31 July 2026.'},
+    {n:'P/A-specific calls for Centers’ Proposed PoDs', s:'2026-07-31', m:true, c:'plan', d:'31 July: Program-/Accelerator-specific calls for Centers’ Proposed Packages of Deliverables (PoDs).'},
+    {n:'Centers identification & submission of Proposed PoDs', s:'2026-07-31', e:'2026-09-11', c:'plan', d:'31 July–11 September: Centers identification and submission of Proposed Packages of Deliverables.'},
+    {n:'P/A review, scoring, ranking & prioritization of PoDs', s:'2026-09-12', e:'2026-10-02', c:'plan', d:'12 September–2 October: Program-/Accelerator review, scoring, ranking, and prioritization of Centers’ proposed PoDs completed and shared.'},
+    {n:'High-level plan across 3 funding scenarios', s:'2026-10-02', m:true, c:'plan', d:'2 October: High-level plan indicating what work (whether continuing or new) is retained under three illustrative funding scenarios.'},
+    {n:'Launch of Planning Cycle: ToC & MELIA updates', s:'2026-10-05', e:'2026-11-16', c:'plan', d:'5 October–16 November: Launch of Planning Cycle — update to ToC and MELIA studies.'},
+    {n:'Risk Registers update & 2027 PORBs developed', s:'2026-10-26', e:'2026-11-16', c:'plan', d:'26 October–16 November: Update to Risk Registers and development of 2027 Plan of Results and Budgets (PORBs). (16 working days)'},
+    {n:'Submission of Draft PORBs for QA', s:'2026-11-16', m:true, c:'plan', d:'16 November: Submission of Draft PORBs for QA.'},
+    {n:'Review & feedback of draft PORBs', s:'2026-11-17', e:'2026-11-23', c:'plan', d:'17–23 November: Review and feedback of the draft PORBs. (5 working days)'},
+    {n:'Finalization & submission of final PORBs for GST', s:'2026-11-24', e:'2026-11-30', c:'plan', d:'24–30 November: Finalization and submission of final PORBs for GST review and endorsement. (5 working days)'},
+  ]},
+  { name:'2026 Reporting Cycle', key:'report', tasks:[
+    {n:'2025 Learning & Optimization process (incl. Technical Reporting) — CSO', s:'2026-06-01', e:'2026-07-31', c:'prep', d:'June–July 2026: 2025 Learning and Optimization process (includes Technical Reporting), led by CSO.'},
+    {n:'Capacity building sessions (PRMS, QA, W3/Bilat, innovations) — CSO', s:'2026-07-01', e:'2026-09-30', c:'prep', d:'July–Sept 2026: Capacity building sessions (tech reporting kick-off, PRMS training, innovations reporting, W3/Bilateral results reporting, QA plan and timeline). Dates TBC; announced via P&R Hub and bi-weekly email. Led by CSO.'},
+    {n:'Final revisions to 2026 P/A ToC — Centre & program', s:'2026-09-01', e:'2026-09-11', c:'prep', d:'1–11 Sept 2026: Final revisions to 2026 P/A ToC. P/As are requested to finalize adjustments to their 2026 ToC per guidance provided. Details communicated via the P&R Hub and by email. Led by Centre and program.'},
+    {n:'Reporting window opens (W1/W2 & W3/Bilateral)', s:'2026-09-14', m:true, c:'data', d:'14 Sept 2026: Reporting window opens for W1/W2 and W3/Bilateral results. Earlier than 2025 — start entering results as early as possible.'},
+    {n:'W1/W2 results submission — HARD deadline', s:'2027-01-31', m:true, hard:true, c:'data', d:'31 Jan 2027: Results submission deadline — W1/W2 results. Hard deadline.'},
+    {n:'W3/Bilateral results submission — HARD deadline', s:'2027-02-14', m:true, hard:true, c:'data', d:'14 Feb 2027: Results submission deadline — W3/bilateral results. Hard deadline.'},
+    {n:'QA process — W1/W2 results (3-week window)', s:'2027-02-01', e:'2027-02-28', c:'qa', d:'Feb 2027: QA process — W1/W2 results (3-week window). On-demand QA from Aug; main batch covers all W1/W2 submitted results.'},
+  ]},
+];
+
+const span = END - START;
+const pct = d => ((new Date(d) - START) / span) * 100;
+const fmt = d => new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+
+// month columns
+const months=[]; let cur=new Date(START);
+while(cur<=END){ months.push(new Date(cur)); cur.setMonth(cur.getMonth()+1); }
+
+const active = {report:true, planning:true};
+let allDesc = false;
+const openSet = new Set();
+const g = document.getElementById('gantt');
+
+function monthHeader(){
+  let h='<div class="months"><div class="label-col">Task</div>';
+  months.forEach(m=>{ h+=`<div class="month">${m.toLocaleDateString('en-GB',{month:'short'})}<small>${m.getFullYear()}</small></div>`; });
+  h+='</div>'; return h;
+}
+function gridLines(){
+  let h='<div class="grid-lines">';
+  months.forEach(m=>{ h+=`<div class="gl" style="left:${pct(m)}%"></div>`; });
+  const tp=pct(TODAY);
+  h+=`</div><div class="today" style="left:calc(300px + (100% - 300px) * ${tp/100})"><span class="flag">Today · 17 Jul 2026</span></div>`;
+  return h;
+}
+function render(){
+  let h=monthHeader();
+  groups.forEach(gr=>{
+    if(!active[gr.key]) return;
+    h+=`<div class="grouphdr">${gr.name}</div>`;
+    gr.tasks.forEach((t,i)=>{
+      const id=gr.key+'-'+i;
+      const open = allDesc || openSet.has(id);
+      h+=`<div class="row"><div class="name${open?' open':''}" data-id="${id}"><span class="caret">▸</span><span>${t.n}</span></div><div class="track">`;
+      if(t.m){
+        h+=`<div class="milestone" style="left:calc(${pct(t.s)}% - 10px);background:${cat[t.c].c}" data-tip="${t.n}||${cat[t.c].t}||${fmt(t.s)}${t.hard?'||HARD deadline':''}"></div>`;
+      } else {
+        const l=pct(t.s), w=pct(t.e)-pct(t.s);
+        h+=`<div class="bar${t.hard?' hard':''}" style="left:${l}%;width:${w}%;background:${cat[t.c].c}" data-tip="${t.n}||${cat[t.c].t}||${fmt(t.s)} → ${fmt(t.e)}">${t.n}</div>`;
+      }
+      h+='</div></div>';
+      if(t.d){ h+=`<div class="desc${open?' show':''}">${t.d}</div>`; }
+    });
+  });
+  g.innerHTML=h+gridLines();
+  bindTips();
+  g.querySelectorAll('.name[data-id]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const id=el.dataset.id;
+      if(allDesc){ // switch to per-row mode with all open except this one
+        allDesc=false; groups.forEach(gr=>gr.tasks.forEach((t,i)=>{ if(t.d) openSet.add(gr.key+'-'+i); }));
+      }
+      openSet.has(id)?openSet.delete(id):openSet.add(id);
+      render();
+    });
+  });
+}
+function bindTips(){
+  const tip=document.getElementById('tip');
+  g.querySelectorAll('[data-tip]').forEach(el=>{
+    el.addEventListener('mousemove',e=>{
+      const p=el.dataset.tip.split('||');
+      tip.innerHTML=`<b>${p[0]}</b><br>${p[1]}<br>${p[2]}`+(p[3]?`<br><span style="color:#ff9d8a">⚠ ${p[3]}</span>`:'');
+      tip.style.opacity=1;
+      let x=e.clientX+14, y=e.clientY+14;
+      if(x>window.innerWidth-270)x=e.clientX-260;
+      tip.style.left=x+'px'; tip.style.top=y+'px';
+    });
+    el.addEventListener('mouseleave',()=>tip.style.opacity=0);
+  });
+}
+
+// filters
+const fbar=document.getElementById('filters');
+[['planning','KPI/POD & 2027 Planning','#2E7D32'],['report','2026 Reporting','#4A7BA6']].forEach(([k,label,col])=>{
+  const b=document.createElement('div'); b.className='filter'; b.innerHTML=`<span class="dot" style="background:${col}"></span>${label}`;
+  b.onclick=()=>{ active[k]=!active[k]; b.classList.toggle('off',!active[k]); render(); };
+  fbar.appendChild(b);
+});
+
+// global show/hide all descriptions
+const tbtn=document.createElement('button');
+tbtn.className='togglebtn';
+tbtn.textContent='Show all descriptions';
+tbtn.onclick=()=>{
+  allDesc=!allDesc; openSet.clear();
+  tbtn.textContent = allDesc ? 'Hide all descriptions' : 'Show all descriptions';
+  render();
+};
+fbar.appendChild(tbtn);
+
+// legend
+document.getElementById('legend').innerHTML =
+  Object.values(cat).map(c=>`<span><span class="dot" style="background:${c.c}"></span>${c.t}</span>`).join('')
+  + `<span><span class="diamond-key"></span>Milestone / deadline</span>`;
+
+render();
+</script>
+</body>
+</html>
